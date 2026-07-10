@@ -1,0 +1,197 @@
+hydra:
+  run:
+    dir: outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  sweep:
+    dir: multirun/${now:%Y-%m-%d}/${now:%H-%M-%S}
+    subdir: ${hydra.job.num}
+  launcher:
+    _target_: hydra._internal.core_plugins.basic_launcher.BasicLauncher
+  sweeper:
+    _target_: hydra._internal.core_plugins.basic_sweeper.BasicSweeper
+    max_batch_size: null
+    params: null
+  help:
+    app_name: ${hydra.job.name}
+    header: '${hydra.help.app_name} is powered by Hydra.
+
+      '
+    footer: 'Powered by Hydra (https://hydra.cc)
+
+      Use --hydra-help to view Hydra specific help
+
+      '
+    template: '${hydra.help.header}
+
+      == Configuration groups ==
+
+      Compose your configuration from those groups (group=option)
+
+
+      $APP_CONFIG_GROUPS
+
+
+      == Config ==
+
+      Override anything in the config (foo.bar=value)
+
+
+      $CONFIG
+
+
+      ${hydra.help.footer}
+
+      '
+  hydra_help:
+    template: 'Hydra (${hydra.runtime.version})
+
+      See https://hydra.cc for more info.
+
+
+      == Flags ==
+
+      $FLAGS_HELP
+
+
+      == Configuration groups ==
+
+      Compose your configuration from those groups (For example, append hydra/job_logging=disabled
+      to command line)
+
+
+      $HYDRA_CONFIG_GROUPS
+
+
+      Use ''--cfg hydra'' to Show the Hydra config.
+
+      '
+    hydra_help: ???
+  hydra_logging:
+    version: 1
+    formatters:
+      simple:
+        format: '[%(asctime)s][HYDRA] %(message)s'
+    handlers:
+      console:
+        class: logging.StreamHandler
+        formatter: simple
+        stream: ext://sys.stdout
+    root:
+      level: INFO
+      handlers:
+      - console
+    loggers:
+      logging_example:
+        level: DEBUG
+    disable_existing_loggers: false
+  job_logging:
+    version: 1
+    formatters:
+      simple:
+        format: '[%(asctime)s][%(name)s][%(levelname)s] - %(message)s'
+    handlers:
+      console:
+        class: logging.StreamHandler
+        formatter: simple
+        stream: ext://sys.stdout
+      file:
+        class: logging.FileHandler
+        formatter: simple
+        filename: ${hydra.runtime.output_dir}/${hydra.job.name}.log
+    root:
+      level: INFO
+      handlers:
+      - console
+      - file
+    disable_existing_loggers: false
+  env: {}
+  mode: RUN
+  searchpath: []
+  callbacks: {}
+  output_subdir: .hydra
+  overrides:
+    hydra:
+    - hydra.mode=RUN
+    task:
+    - data.train_files=/workspace/ericbiaoliu/code/factguard_code/train/data/factguard_train.parquet
+    - data.val_files=null
+    - data.train_batch_size=128
+    - data.micro_batch_size_per_gpu=1
+    - data.use_dynamic_bsz=true
+    - data.max_token_len_per_gpu=16384
+    - data.max_length=32768
+    - data.pad_mode=no_padding
+    - data.truncation=left
+    - data.messages_key=messages
+    - data.num_workers=4
+    - data.custom_cls.path=/workspace/ericbiaoliu/code/factguard_code/train/verl_sft_dataset.py
+    - data.custom_cls.name=FactGuardSFTDataset
+    - model.path=/workspace/ericbiaoliu/code/hf_models/internlm2_5-1_8b-chat
+    - model.trust_remote_code=true
+    - model.enable_gradient_checkpointing=true
+    - model.use_remove_padding=true
+    - engine=fsdp
+    - engine.strategy=fsdp
+    - engine.fsdp_size=8
+    - engine.ulysses_sequence_parallel_size=2
+    - engine.model_dtype=bfloat16
+    - engine.dtype=bfloat16
+    - engine.use_torch_compile=false
+    - optim=fsdp
+    - optim.lr=2e-5
+    - optim.lr_warmup_steps_ratio=0.1
+    - optim.weight_decay=0.1
+    - optim.lr_scheduler_type=cosine
+    - trainer.total_epochs=2
+    - trainer.total_training_steps=null
+    - trainer.default_local_dir=/workspace/ericbiaoliu/code/factguard_code/train/output_verl/internlm2_5_1_8b_sft
+    - trainer.project_name=factguard-verl-sft
+    - trainer.experiment_name=internlm2_5_1_8b_sft
+    - trainer.save_freq=after_each_epoch
+    - trainer.test_freq=-1
+    - trainer.logger=[console,file]
+    - trainer.resume_mode=auto
+    - model.lora_rank=0
+  job:
+    name: sft_trainer
+    chdir: null
+    override_dirname: data.custom_cls.name=FactGuardSFTDataset,data.custom_cls.path=/workspace/ericbiaoliu/code/factguard_code/train/verl_sft_dataset.py,data.max_length=32768,data.max_token_len_per_gpu=16384,data.messages_key=messages,data.micro_batch_size_per_gpu=1,data.num_workers=4,data.pad_mode=no_padding,data.train_batch_size=128,data.train_files=/workspace/ericbiaoliu/code/factguard_code/train/data/factguard_train.parquet,data.truncation=left,data.use_dynamic_bsz=true,data.val_files=null,engine.dtype=bfloat16,engine.fsdp_size=8,engine.model_dtype=bfloat16,engine.strategy=fsdp,engine.ulysses_sequence_parallel_size=2,engine.use_torch_compile=false,engine=fsdp,model.enable_gradient_checkpointing=true,model.lora_rank=0,model.path=/workspace/ericbiaoliu/code/hf_models/internlm2_5-1_8b-chat,model.trust_remote_code=true,model.use_remove_padding=true,optim.lr=2e-5,optim.lr_scheduler_type=cosine,optim.lr_warmup_steps_ratio=0.1,optim.weight_decay=0.1,optim=fsdp,trainer.default_local_dir=/workspace/ericbiaoliu/code/factguard_code/train/output_verl/internlm2_5_1_8b_sft,trainer.experiment_name=internlm2_5_1_8b_sft,trainer.logger=[console,file],trainer.project_name=factguard-verl-sft,trainer.resume_mode=auto,trainer.save_freq=after_each_epoch,trainer.test_freq=-1,trainer.total_epochs=2,trainer.total_training_steps=null
+    id: ???
+    num: ???
+    config_name: sft_trainer_engine
+    env_set: {}
+    env_copy: []
+    config:
+      override_dirname:
+        kv_sep: '='
+        item_sep: ','
+        exclude_keys: []
+  runtime:
+    version: 1.3.3
+    version_base: '1.3'
+    cwd: /workspace/ericbiaoliu/code/factguard_code
+    config_sources:
+    - path: hydra.conf
+      schema: pkg
+      provider: hydra
+    - path: /workspace/ericbiaoliu/code/sketchRL/verl/verl/trainer/config
+      schema: file
+      provider: main
+    - path: ''
+      schema: structured
+      provider: schema
+    output_dir: /workspace/ericbiaoliu/code/factguard_code/outputs/2026-07-10/10-21-07
+    choices:
+      profiler: profiler
+      optim: fsdp
+      engine: fsdp
+      model: hf_model
+      hydra/env: default
+      hydra/callbacks: null
+      hydra/job_logging: default
+      hydra/hydra_logging: default
+      hydra/hydra_help: default
+      hydra/help: default
+      hydra/sweeper: basic
+      hydra/launcher: basic
+      hydra/output: default
+  verbose: false

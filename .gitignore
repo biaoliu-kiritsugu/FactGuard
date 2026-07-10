@@ -3,6 +3,8 @@ data/
 *.jsonl
 train/data/factguard_train.json
 train/output/
+train/output_verl/
+train/.cache/
 
 # ---- Secrets ----
 .env

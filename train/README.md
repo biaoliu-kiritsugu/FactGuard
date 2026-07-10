@@ -1,5 +1,9 @@
 # Cross-Family SFT / LoRA — FactGuard Rebuttal Experiment
 
+> For the verl-based 8xH200 launcher, dataset conversion, and usage notes, see
+> [VERL_README.md](VERL_README.md). The YAML files below remain the original
+> LLaMA-Factory reference configurations.
+
 **Goal.** Replicate the paper's Qwen2.5 fine-tuning recipe on **two other model families** to
 prove the reliability gains are *not* specific to Qwen (rebuttal to the circularity critique).
 
