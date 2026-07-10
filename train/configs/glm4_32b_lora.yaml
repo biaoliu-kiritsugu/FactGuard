@@ -1,0 +1,42 @@
+### model
+model_name_or_path: zai-org/GLM-4-32B-0414
+trust_remote_code: true
+
+### method
+stage: sft
+do_train: true
+finetuning_type: lora
+lora_rank: 8
+lora_alpha: 16
+lora_dropout: 0.05
+lora_target: query_key_value
+### dataset
+dataset: factguard_train
+dataset_dir: train/data
+template: glm4
+cutoff_len: 32768
+overwrite_cache: true
+preprocessing_num_workers: 16
+packing: false
+
+### output
+output_dir: train/output/glm4_32b_lora
+logging_steps: 10
+save_steps: 500
+plot_loss: true
+overwrite_output_dir: true
+report_to: none
+
+### train (matches paper: AdamW, lr=2e-5, 2 epochs, warmup 0.1, weight_decay 0.1)
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 16
+learning_rate: 2.0e-5
+num_train_epochs: 2.0
+lr_scheduler_type: cosine
+warmup_ratio: 0.1
+weight_decay: 0.1
+optim: adamw_torch
+bf16: true
+gradient_checkpointing: true
+flash_attn: fa2
+ddp_timeout: 180000000

@@ -1,0 +1,34 @@
+# ---- Datasets (large / do not publish) ----
+data/
+*.jsonl
+train/data/factguard_train.json
+train/output/
+
+# ---- Secrets ----
+.env
+*.env
+**/.env
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+.Python
+build/
+dist/
+*.whl
+
+# ---- OS / editor ----
+.DS_Store
+**/.DS_Store
+.Temp/
+*.swp
+.idea/
+.vscode/
+
+# ---- Logs / checkpoints ----
+*.log
+*.ckpt
+*.safetensors
+*.bin

@@ -1,0 +1,40 @@
+[build-system]
+# AVOID CHANGING REQUIRES: IT WILL BE UPDATED BY PYSCAFFOLD!
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "misattribution"
+version = "0.0.1"
+authors = [{ name = "fangli", email = "fangli9@foxmail.com" }]
+description = " project"
+readme = "README.md"
+requires-python = ">=3.7"
+
+dependencies = [
+    "requests",
+    "python-dotenv",
+    "aiohttp",
+    "jsonlines",
+    "rich"
+]
+
+
+[tool.setuptools.packages.find]
+# All the following settings are optional:
+where = ["src"]    # ["."] by default
+include = ["*"]    # ["*"] by default
+exclude = []       # empty by default
+namespaces = false # true by default
+
+[tool.black]
+line-length = 88
+target-version = ['py39']
+include = '\.pyi?$'
+extend-exclude = '''
+'''
+
+[tool.ruff]
+
+line-length = 88
+
