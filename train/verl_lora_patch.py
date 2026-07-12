@@ -14,7 +14,19 @@ from __future__ import annotations
 import os
 
 from transformers import PreTrainedModel
+from transformers.models.ministral3.modeling_ministral3 import Ministral3Model as Ministral3TextModel
+from verl.models.transformers.monkey_patch import patch_vlm_for_ulysses_input_slicing
 from verl.workers.engine.fsdp import transformer_impl
+
+
+# Mistral3 is a multimodal wrapper around MistralModel. verl keeps the full
+# token sequence for VLMs and expects the text decoder to slice embeddings by
+# Ulysses rank, but its current VLM compatibility list does not include
+# Mistral3. Without this patch every rank returns full-sequence logits while
+# labels and temperatures are rank-local (an exact SP-size shape mismatch).
+if not getattr(Ministral3TextModel.forward, "_factguard_ulysses_input_slice_patch", False):
+    patch_vlm_for_ulysses_input_slicing(Ministral3TextModel)
+    Ministral3TextModel.forward._factguard_ulysses_input_slice_patch = True
 
 
 # Transformers 5 expects a property introduced after GLM-4-9B's bundled

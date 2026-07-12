@@ -25,6 +25,7 @@ LORA_DROPOUT=${LORA_DROPOUT:-0.05}
 RESUME_MODE=${RESUME_MODE:-auto}
 SAVE_FREQ=${SAVE_FREQ:-after_each_epoch}
 PROJECT_NAME=${PROJECT_NAME:-factguard-verl-sft}
+SWANLAB_LOG_DIR=${SWANLAB_LOG_DIR:-"${ROOT_DIR}/train/swanlog"}
 
 usage() {
     cat <<'EOF'
@@ -32,20 +33,22 @@ Usage:
   bash train/run_verl_train.sh prepare
   bash train/run_verl_train.sh <model> <sft|lora> [Hydra overrides ...]
   bash train/run_verl_train.sh all
+  bash train/run_verl_train.sh ministral-all
 
 Models:
-  internlm2_5_1_8b, internlm2_5_7b, internlm2_5_20b, glm4_9b, glm4_32b
+  internlm2_5_1_8b, internlm2_5_7b, internlm2_5_20b, glm4_9b, glm4_32b,
+  ministral3_3b, ministral3_8b, ministral3_14b
 
 Examples:
   bash train/run_verl_train.sh prepare
   bash train/run_verl_train.sh internlm2_5_7b lora
   RESUME_MODE=disable bash train/run_verl_train.sh glm4_32b sft
-  SP_SIZE=4 MAX_TOKEN_LEN_PER_GPU=8192 bash train/run_verl_train.sh glm4_9b lora
+  SP_SIZE=8 MAX_LENGTH=131072 MAX_TOKEN_LEN_PER_GPU=16384 bash train/run_verl_train.sh glm4_9b lora
 
 Useful environment overrides:
   MODEL_ROOT, TRAIN_PARQUET, OUTPUT_ROOT, NUM_GPUS, GLOBAL_BATCH_SIZE,
   SP_SIZE, MAX_LENGTH, MAX_TOKEN_LEN_PER_GPU, RESUME_MODE, SAVE_FREQ,
-  CUDA_VISIBLE_DEVICES, DRY_RUN=1
+  SWANLAB_LOG_DIR, SWANLAB_MODE, CUDA_VISIBLE_DEVICES, DRY_RUN=1
 EOF
 }
 
@@ -68,6 +71,16 @@ if [[ $1 == all ]]; then
     # InternLM is excluded because its bundled remote code produces NaN logits
     # with the installed Transformers 5.x runtime.
     for model in glm4_9b glm4_32b; do
+        for method in sft lora; do
+            bash "$0" "${model}" "${method}"
+        done
+    done
+    exit 0
+fi
+
+if [[ $1 == ministral-all ]]; then
+    # Run Ministral 3 from small to large; each full SFT is followed by LoRA.
+    for model in ministral3_3b ministral3_8b ministral3_14b; do
         for method in sft lora; do
             bash "$0" "${model}" "${method}"
         done
@@ -108,17 +121,38 @@ case "${MODEL_KEY}" in
         ;;
     glm4_9b)
         MODEL_DIR=glm-4-9b-chat
-        DEFAULT_SP_SIZE=1
-        DEFAULT_MAX_LENGTH=32768
-        DEFAULT_MAX_TOKENS=32768
+        DEFAULT_SP_SIZE=8
+        DEFAULT_MAX_LENGTH=131072
+        DEFAULT_MAX_TOKENS=16384
         LORA_TARGETS='[query_key_value]'
         ;;
     glm4_32b)
         MODEL_DIR=GLM-4-32B-0414
-        DEFAULT_SP_SIZE=1
-        DEFAULT_MAX_LENGTH=32768
-        DEFAULT_MAX_TOKENS=32768
+        DEFAULT_SP_SIZE=8
+        DEFAULT_MAX_LENGTH=131072
+        DEFAULT_MAX_TOKENS=16384
         # This model has separate Q/K/V projections; query_key_value does not exist.
+        LORA_TARGETS='[q_proj,v_proj]'
+        ;;
+    ministral3_3b)
+        MODEL_DIR=Ministral-3-3B-Instruct-2512-BF16
+        DEFAULT_SP_SIZE=8
+        DEFAULT_MAX_LENGTH=131072
+        DEFAULT_MAX_TOKENS=16384
+        LORA_TARGETS='[q_proj,v_proj]'
+        ;;
+    ministral3_8b)
+        MODEL_DIR=Ministral-3-8B-Instruct-2512-BF16
+        DEFAULT_SP_SIZE=8
+        DEFAULT_MAX_LENGTH=131072
+        DEFAULT_MAX_TOKENS=16384
+        LORA_TARGETS='[q_proj,v_proj]'
+        ;;
+    ministral3_14b)
+        MODEL_DIR=Ministral-3-14B-Instruct-2512-BF16
+        DEFAULT_SP_SIZE=8
+        DEFAULT_MAX_LENGTH=131072
+        DEFAULT_MAX_TOKENS=16384
         LORA_TARGETS='[q_proj,v_proj]'
         ;;
     *)
@@ -170,6 +204,8 @@ export FLASHINFER_WORKSPACE_BASE=${FLASHINFER_WORKSPACE_BASE:-"${ROOT_DIR}/train
 export TORCH_EXTENSIONS_DIR=${TORCH_EXTENSIONS_DIR:-"${ROOT_DIR}/train/.cache/torch_extensions"}
 export TOKENIZERS_PARALLELISM=${TOKENIZERS_PARALLELISM:-true}
 export FACTGUARD_LORA_DROPOUT=${LORA_DROPOUT}
+export SWANLAB_LOG_DIR
+export SWANLAB_MODE=${SWANLAB_MODE:-cloud}
 
 LORA_ARGS=(model.lora_rank=0)
 if [[ ${METHOD} == lora ]]; then
@@ -180,7 +216,14 @@ if [[ ${METHOD} == lora ]]; then
     )
 fi
 
-MODEL_OVERRIDES=(+model.override_config.attn_implementation=sdpa)
+if [[ ${MODEL_KEY} == ministral3_* ]]; then
+    # Ulysses sequence parallelism communicates through verl's patched
+    # FlashAttention path. Mistral3 otherwise defaults to SDPA and produces
+    # full-sequence outputs on every SP rank.
+    MODEL_OVERRIDES=(+model.override_config.attn_implementation=flash_attention_2)
+else
+    MODEL_OVERRIDES=(+model.override_config.attn_implementation=sdpa)
+fi
 if [[ ${MODEL_KEY} == glm4_9b ]]; then
     # ChatGLM calls this field multi_query_group_num; verl's Ulysses check uses
     # the standard Hugging Face num_key_value_heads name.
@@ -211,7 +254,7 @@ CMD=(
     model.trust_remote_code=true
     model.external_lib=train.verl_lora_patch
     model.enable_gradient_checkpointing=true
-    model.use_remove_padding=false
+    model.use_remove_padding=true
     engine=fsdp
     engine.strategy=fsdp
     "engine.fsdp_size=${NUM_GPUS}"
@@ -231,7 +274,7 @@ CMD=(
     "trainer.experiment_name=${EXPERIMENT_NAME}"
     "trainer.save_freq=${SAVE_FREQ}"
     trainer.test_freq=-1
-    trainer.logger='[console,file]'
+    trainer.logger='[console,file,swanlab]'
     "trainer.resume_mode=${RESUME_MODE}"
     "${LORA_ARGS[@]}"
     "${MODEL_OVERRIDES[@]}"

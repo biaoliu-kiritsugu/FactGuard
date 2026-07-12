@@ -5,6 +5,10 @@ train/data/factguard_train.json
 train/output/
 train/output_verl/
 train/.cache/
+train/swanlog/
+outputs/
+evaluation/merged_models/
+evaluation/predictions/
 
 # ---- Secrets ----
 .env
