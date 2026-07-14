@@ -50,7 +50,7 @@ The paper-aligned settings are fixed by default:
 - warmup ratio: `0.1`
 - weight decay: `0.1`
 - cosine LR schedule
-- LoRA: rank `8`, alpha `16`, dropout `0.05`
+- LoRA: rank `128`, alpha `256`, dropout `0.05`
 - global batch size: `128`, with micro batch size `1` per data-parallel rank
 
 InternLM uses its fused `wqkv` LoRA projection and GLM-4-9B uses
