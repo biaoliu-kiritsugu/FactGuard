@@ -1,0 +1,171 @@
+{
+  "dataset_name": "FactGuard-Bench",
+  "format": "parquet",
+  "features": {
+    "id": "string",
+    "document_id": "string",
+    "document": "string",
+    "question": "string",
+    "response": "string",
+    "answerability": "string",
+    "category": "string",
+    "perturbation": "string",
+    "language": "string",
+    "domain": "string",
+    "source_file": "string",
+    "legacy_length_bucket": "string",
+    "document_char_length": "int64",
+    "question_char_length": "int64",
+    "response_char_length": "int64",
+    "evidence": "string",
+    "original_question": "string",
+    "original_answer": "string",
+    "unanswerable_reason": "string",
+    "original_entity": "string",
+    "substituted_entity": "string",
+    "unsupported_condition": "string",
+    "question_type": "string"
+  },
+  "splits": {
+    "train": {
+      "num_examples": 19100,
+      "num_bytes": 310725789,
+      "document_chars": 693758694,
+      "answerability": {
+        "answerable": 6168,
+        "unanswerable": 12932
+      },
+      "category": {
+        "answerable": 6168,
+        "lack_of_evidence": 2752,
+        "misleading_evidence": 10180
+      },
+      "perturbation": {
+        "entity_substitution": 3411,
+        "evidence_removal": 2752,
+        "impossible_condition": 6769,
+        "none": 6168
+      },
+      "language": {
+        "en": 10699,
+        "zh": 8401
+      },
+      "domain": {
+        "book": 10099,
+        "law": 9001
+      },
+      "shards": [
+        {
+          "path": "data/train.parquet",
+          "num_examples": 19100,
+          "num_bytes": 310725789
+        }
+      ],
+      "num_unique_document_ids": 11379,
+      "num_unique_exact_documents": 13449,
+      "num_unique_questions": 19064
+    },
+    "validation": {
+      "num_examples": 1920,
+      "num_bytes": 31218221,
+      "document_chars": 68509356,
+      "answerability": {
+        "answerable": 317,
+        "unanswerable": 1603
+      },
+      "category": {
+        "answerable": 317,
+        "lack_of_evidence": 449,
+        "misleading_evidence": 1154
+      },
+      "perturbation": {
+        "entity_substitution": 494,
+        "evidence_removal": 449,
+        "impossible_condition": 660,
+        "none": 317
+      },
+      "language": {
+        "en": 1140,
+        "zh": 780
+      },
+      "domain": {
+        "book": 990,
+        "law": 930
+      },
+      "shards": [
+        {
+          "path": "data/validation.parquet",
+          "num_examples": 1920,
+          "num_bytes": 31218221
+        }
+      ],
+      "num_unique_document_ids": 1785,
+      "num_unique_exact_documents": 1847,
+      "num_unique_questions": 1920
+    },
+    "test": {
+      "num_examples": 4200,
+      "num_bytes": 70818511,
+      "document_chars": 161913788,
+      "answerability": {
+        "answerable": 700,
+        "unanswerable": 3500
+      },
+      "category": {
+        "answerable": 700,
+        "lack_of_evidence": 1050,
+        "misleading_evidence": 2450
+      },
+      "perturbation": {
+        "entity_substitution": 1050,
+        "evidence_removal": 1050,
+        "impossible_condition": 1400,
+        "none": 700
+      },
+      "language": {
+        "en": 2400,
+        "zh": 1800
+      },
+      "domain": {
+        "book": 2100,
+        "law": 2100
+      },
+      "shards": [
+        {
+          "path": "data/test.parquet",
+          "num_examples": 4200,
+          "num_bytes": 70818511
+        }
+      ],
+      "num_unique_document_ids": 3578,
+      "num_unique_exact_documents": 3874,
+      "num_unique_questions": 4197
+    }
+  },
+  "totals": {
+    "num_examples": 25220,
+    "num_bytes": 412762521
+  },
+  "split_overlap": {
+    "train__validation": {
+      "shared_document_ids": 1318,
+      "shared_exact_documents": 897,
+      "shared_exact_questions": 7
+    },
+    "train__test": {
+      "shared_document_ids": 2719,
+      "shared_exact_documents": 1921,
+      "shared_exact_questions": 11
+    },
+    "validation__test": {
+      "shared_document_ids": 448,
+      "shared_exact_documents": 240,
+      "shared_exact_questions": 1
+    }
+  },
+  "notes": [
+    "Character lengths are provided for transparent filtering and are not tokenizer token counts.",
+    "The public schema omits internal model traces and duplicate full-document fields.",
+    "The legacy development split is published as the Hugging Face validation split."
+  ]
+}

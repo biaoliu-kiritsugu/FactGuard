@@ -1,0 +1,10 @@
+{
+  "factguard_train": {
+    "file_name": "factguard_train.json",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output"
+    }
+  }
+}

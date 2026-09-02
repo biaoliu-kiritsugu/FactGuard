@@ -14,8 +14,8 @@ import statistics
 # ------------------------------------------------------------
 # 文件路径配置
 # ------------------------------------------------------------
-DEFAULT_EVAL_FILE = Path('FactGuard/数据/gemini-3-pro-preview_qwen-judge.jsonl')
-DEFAULT_TEST_FILE = Path('FactGuard/数据/合成数据/merged_test.jsonl')
+DEFAULT_EVAL_FILE = Path('evaluation/judge_results/model_qwen_judge.jsonl')
+DEFAULT_TEST_FILE = Path('data/merged_test.jsonl')
 
 # ------------------------------------------------------------
 # Levenshtein Similarity
@@ -119,7 +119,10 @@ def compute_nls_stats(pairs: list, lang_map: dict = None) -> dict:
         nls = normalized_levenshtein_similarity(orig, mod)
         all_sims.append(nls)
 
-        if eval_r.get('是否有澄清') == '是':
+        clarified = eval_r.get('clarified')
+        if clarified is None:
+            clarified = eval_r.get('是否有澄清') == '是'
+        if clarified:
             correct_sims.append(nls)
         else:
             incorrect_sims.append(nls)
@@ -221,7 +224,9 @@ def compute_nls_bin_accuracy(pairs: list) -> dict:
 
     for row_idx, orig, mod, eval_r in pairs:
         nls = normalized_levenshtein_similarity(orig, mod)
-        correct = eval_r.get('是否有澄清') == '是'
+        correct = eval_r.get('clarified')
+        if correct is None:
+            correct = eval_r.get('是否有澄清') == '是'
         for lo, hi, label in NLS_BINS:
             if lo <= nls < hi:
                 bins_data[label]['total'] += 1
@@ -308,7 +313,9 @@ def main():
     print(f"=== 样本 (前 {args.top_n} 条) ===")
     for row_idx, orig, mod, eval_r in pairs[:args.top_n]:
         nls = normalized_levenshtein_similarity(orig, mod)
-        correct = eval_r.get('是否有澄清') == '是'
+        correct = eval_r.get('clarified')
+        if correct is None:
+            correct = eval_r.get('是否有澄清') == '是'
         status = '✓ 已澄清' if correct else '✗ 未澄清'
         print(f"  [{row_idx}] 原始: '{orig}' → 修改: '{mod}'  NLS={nls:.4f}  {status}")
 
@@ -355,7 +362,11 @@ def main():
                     'orig_entity': orig,
                     'mod_entity': mod,
                     'nls': normalized_levenshtein_similarity(orig, mod),
-                    'correct': eval_r.get('是否有澄清') == '是',
+                    'correct': (
+                        eval_r.get('clarified')
+                        if isinstance(eval_r.get('clarified'), bool)
+                        else eval_r.get('是否有澄清') == '是'
+                    ),
                 }
                 for row_idx, orig, mod, eval_r in pairs
             ]

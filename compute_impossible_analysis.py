@@ -18,9 +18,9 @@ import statistics
 # ------------------------------------------------------------
 # 文件路径配置
 # ------------------------------------------------------------
-DEFAULT_JUDGE_FILE = Path('FactGuard/数据/gemini-3-pro-preview_qwen-judge.jsonl')
-DEFAULT_TEST_FILE = Path('FactGuard/数据/合成数据/merged_test.jsonl')
-DEFAULT_PRED_FILE = Path('FactGuard/数据/评测结果/gemini-3-pro-preview_preds.jsonl')
+DEFAULT_JUDGE_FILE = Path('evaluation/judge_results/model_qwen_judge.jsonl')
+DEFAULT_TEST_FILE = Path('data/merged_test.jsonl')
+DEFAULT_PRED_FILE = Path('evaluation/predictions/model_preds.jsonl')
 
 
 # ------------------------------------------------------------
@@ -81,7 +81,11 @@ def load_impossible_data(judge_file: Path, test_file: Path, pred_file: Path) -> 
             'original_question': origin.get('问题', ''),
             'modified_question': origin.get('增加条件的问题', ''),
             'completion': pred_map.get(row_idx, ''),
-            'has_clarification': eval_r.get('是否有澄清') == '是',
+            'has_clarification': (
+                eval_r.get('clarified')
+                if isinstance(eval_r.get('clarified'), bool)
+                else eval_r.get('是否有澄清') == '是'
+            ),
             'eval_analysis': eval_r.get('分析', ''),
         })
 

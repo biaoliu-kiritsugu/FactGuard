@@ -126,9 +126,11 @@ Qwen results):
 
 1. Generate predictions on the FactGuard-Bench **test set** with each fine-tuned checkpoint
    (vLLM/HF generate; same prompt format as `input`).
-2. Score with the Qwen2.5-72B LLM-judge: `misa/cli/evaluate.py`.
+2. Score with the Qwen2.5-72B LLM-judge:
+   `evaluation/evaluate_predictions_api.py`.
 3. Aggregate per En/Zh × Ans./Lack./Mis. and length buckets: `compute_metrics.py`.
-4. (Also strengthens the rebuttal) cross-judge check with `compare_judges.py`.
+4. (Optional) repeat the evaluation with an independent judge and report
+   agreement and Cohen's kappa.
 
 Produce one table: **each family, before vs after SFT/LoRA**, mirroring paper Table 3 —
 that is the direct answer to "does it generalize beyond Qwen?".

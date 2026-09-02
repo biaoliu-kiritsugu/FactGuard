@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use FactGuard or FactGuard-Bench, please cite the paper."
+title: "Towards Reliable Long-Context Reasoning: Detecting Unanswerable Questions via FactGuard"
+type: software
+authors:
+  - family-names: Zhang
+    given-names: Qian-Wen
+  - family-names: Liu
+    given-names: Biao
+  - family-names: Li
+    given-names: Fang
+  - family-names: Wang
+    given-names: Jie
+  - family-names: Qiao
+    given-names: Lingfeng
+  - family-names: Yu
+    given-names: Yifei
+  - family-names: Yin
+    given-names: Di
+  - family-names: Sun
+    given-names: Xing
+repository-code: "https://github.com/biaoliu-kiritsugu/FactGuard"
+date-released: 2026-09-02

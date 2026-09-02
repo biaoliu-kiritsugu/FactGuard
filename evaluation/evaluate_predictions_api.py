@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Evaluate FactGuard predictions with an OpenAI-compatible judge API.
 
-This preserves the R1 -> R2 -> conditional R3 pipeline used by
-evaluate_deepseek_with_qwen.py, while using an already-running vLLM server.
-Outputs are append-only and resumable by row_idx.
+This uses the English R1 -> R2 -> conditional R3 prompts in ``judge_utils.py``
+against an already-running OpenAI-compatible server. Outputs are append-only
+and resumable by row_idx.
 """
 
 import argparse
@@ -15,9 +15,9 @@ from pathlib import Path
 import jsonlines
 from openai import AsyncOpenAI
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from evaluate_deepseek_with_qwen import (
+from judge_utils import (
     R2_PROMPT,
     build_examples,
     build_r1_messages,
@@ -31,20 +31,20 @@ from evaluate_deepseek_with_qwen import (
 
 
 def validate_r2(result, ex_type):
-    decision_key = "是否有澄清" if ex_type in ("misattr", "impossible") else "是否有指出"
-    if result.get(decision_key) not in ("是", "否"):
+    decision_key = "clarified" if ex_type in ("misattr", "impossible") else "refusal_detected"
+    if not isinstance(result.get(decision_key), bool):
         raise ValueError(f"invalid R2 result for {ex_type}: {result!r}")
-    if not isinstance(result.get("对应片段"), str):
+    if not isinstance(result.get("excerpt"), str):
         raise ValueError(f"invalid R2 excerpt for {ex_type}: {result!r}")
-    if ex_type == "impossible" and not isinstance(result.get("分析"), str):
+    if ex_type == "impossible" and not isinstance(result.get("analysis"), str):
         raise ValueError(f"invalid R2 result for impossible: {result!r}")
     return result
 
 
 def validate_r3(result):
-    if result.get("是否有相同结论") not in ("是", "否"):
+    if not isinstance(result.get("same_conclusion"), bool):
         raise ValueError(f"invalid R3 result: {result!r}")
-    if not isinstance(result.get("分析是否有相同结论"), str):
+    if not isinstance(result.get("analysis"), str):
         raise ValueError(f"invalid R3 analysis: {result!r}")
     return result
 

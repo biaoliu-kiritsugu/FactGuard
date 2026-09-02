@@ -1,7 +1,12 @@
-# ---- Datasets (large / do not publish) ----
+# ---- Local/raw datasets (large / do not publish in the code repository) ----
 data/
+!data/
+!data/README.md
+factguard_generation/data/
 *.jsonl
 train/data/factguard_train.json
+!train/data/
+!train/data/dataset_info.json
 train/output/
 train/output_verl/
 train/.cache/
@@ -9,6 +14,7 @@ train/swanlog/
 outputs/
 evaluation/merged_models/
 evaluation/predictions/
+evaluation/judge_results/
 
 # ---- Secrets ----
 .env
@@ -38,3 +44,9 @@ dist/
 *.ckpt
 *.safetensors
 *.bin
+
+# Hugging Face dataset export. Keep the release metadata in Git; Parquet files
+# should be tracked with Git LFS in the standalone dataset repository.
+!hf_dataset/
+!hf_dataset/**
+hf_dataset/data/*.parquet

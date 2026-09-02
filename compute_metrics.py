@@ -1,14 +1,24 @@
 #!/usr/bin/env python3
-# 计算 FactGuard 评测指标
-# 用法: python compute_metrics.py
+"""Compute FactGuard accuracy breakdowns from LLM-as-a-Judge outputs."""
 
-import jsonlines
+import argparse
+import json
+import re
 from pathlib import Path
 from collections import defaultdict
 
-EVAL_FILE = Path('FactGuard/数据/deepseek-v4-pro_qwen-judge.jsonl')
-# EVAL_FILE = Path('FactGuard/数据/gemini-3-pro-preview_qwen-judge.jsonl')
-TEST_FILE = Path('FactGuard/数据/合成数据/merged_test.jsonl')
+EVAL_FILE: Path
+TEST_FILE: Path
+
+
+def read_jsonl(path: Path):
+    with path.open("r", encoding="utf-8") as reader:
+        for line_number, line in enumerate(reader, 1):
+            if line.strip():
+                try:
+                    yield json.loads(line)
+                except json.JSONDecodeError as exc:
+                    raise ValueError(f"{path}:{line_number}: invalid JSON") from exc
 
 # len_range -> 长度桶
 LEN_BUCKET = {
@@ -46,8 +56,6 @@ def get_fine_len_bucket(n_chars: int) -> str:
     return 'unknown'
 
 
-import re
-
 def get_lang(source: str) -> str:
     return 'zh' if '_zh_' in source else 'en'
 
@@ -63,24 +71,42 @@ def is_correct(type_: str, eval_result: dict) -> tuple[bool, bool]:
     dandian/answerable/misattr/impossible 统一归一为 正确/不正确
     """
     if type_ == 'dandian':
-        if eval_result.get('是否有指出') == '是':
+        refusal = eval_result.get('refusal_detected')
+        if refusal is None:
+            refusal = eval_result.get('是否有指出') == '是'
+        if refusal:
             return True, False
         # 没有拒答但结论相同 -> 数据有误，排除
-        if eval_result.get('是否有相同结论') == '是':
+        same = eval_result.get('same_conclusion')
+        if same is None:
+            same = eval_result.get('是否有相同结论') == '是'
+        if same:
             return False, True
         return False, False
 
     elif type_ == 'answerable':
         # 正确：没有错误拒答 且 结论相同
-        if eval_result.get('是否有指出') == '否' and eval_result.get('是否有相同结论') == '是':
+        refusal = eval_result.get('refusal_detected')
+        if refusal is None:
+            refusal = eval_result.get('是否有指出') == '是'
+        same = eval_result.get('same_conclusion')
+        if same is None:
+            same = eval_result.get('是否有相同结论') == '是'
+        if not refusal and same:
             return True, False
         return False, False
 
     elif type_ == 'misattr':
-        return eval_result.get('是否有澄清') == '是', False
+        clarified = eval_result.get('clarified')
+        if clarified is None:
+            clarified = eval_result.get('是否有澄清') == '是'
+        return bool(clarified), False
 
     elif type_ == 'impossible':
-        return eval_result.get('是否有澄清') == '是', False
+        clarified = eval_result.get('clarified')
+        if clarified is None:
+            clarified = eval_result.get('是否有澄清') == '是'
+        return bool(clarified), False
 
     return False, False
 
@@ -105,18 +131,17 @@ class Bucket:
 def main():
     # 加载 merged_test 按 row_idx 索引
     row_meta = {}  # row_idx -> {lang, len_bucket, domain, len_chars, len_bucket_fine}
-    with jsonlines.open(TEST_FILE) as r:
-        for i, obj in enumerate(r):
-            lr = obj['origin'].get('len_range', '')
-            inp = obj.get('input', '')
-            n_chars = len(inp) if isinstance(inp, str) else 0
-            row_meta[i] = {
-                'lang': get_lang(obj['source']),
-                'len_bucket': LEN_BUCKET.get(lr, 'unknown'),
-                'domain': get_domain(obj['source']),
-                'len_chars': n_chars,
-                'len_bucket_fine': get_fine_len_bucket(n_chars),
-            }
+    for i, obj in enumerate(read_jsonl(TEST_FILE)):
+        lr = obj['origin'].get('len_range', '')
+        inp = obj.get('input', '')
+        n_chars = len(inp) if isinstance(inp, str) else 0
+        row_meta[i] = {
+            'lang': get_lang(obj['source']),
+            'len_bucket': LEN_BUCKET.get(lr, 'unknown'),
+            'domain': get_domain(obj['source']),
+            'len_chars': n_chars,
+            'len_bucket_fine': get_fine_len_bucket(n_chars),
+        }
 
     # 统计容器
     overall = Bucket()
@@ -131,25 +156,23 @@ def main():
 
     # 加载 judge 结果，按 row_idx 索引
     judge_results = {}  # row_idx -> (type_, eval_result)
-    with jsonlines.open(EVAL_FILE) as r:
-        for obj in r:
-            row_idx = obj.get('row_idx')
-            if row_idx is not None:
-                judge_results[row_idx] = (obj.get('type'), obj.get('eval_result', {}))
+    for obj in read_jsonl(EVAL_FILE):
+        row_idx = obj.get('row_idx')
+        if row_idx is not None:
+            judge_results[row_idx] = (obj.get('type'), obj.get('eval_result', {}))
 
     # 加载 merged_test 的 type 信息
     row_type = {}
-    with jsonlines.open(TEST_FILE) as r:
-        for i, obj in enumerate(r):
-            src = obj['source']
-            if obj['is_positive']:
-                row_type[i] = 'answerable'
-            elif 'dandian' in src:
-                row_type[i] = 'dandian'
-            elif 'impossible' in src:
-                row_type[i] = 'impossible'
-            elif 'misattr' in src:
-                row_type[i] = 'misattr'
+    for i, obj in enumerate(read_jsonl(TEST_FILE)):
+        src = obj['source']
+        if obj['is_positive']:
+            row_type[i] = 'answerable'
+        elif 'dandian' in src:
+            row_type[i] = 'dandian'
+        elif 'impossible' in src:
+            row_type[i] = 'impossible'
+        elif 'misattr' in src:
+            row_type[i] = 'misattr'
 
     n_evaluated = 0
     n_missing = 0
@@ -233,11 +256,10 @@ def main_grouped():
     row_meta, row_type = _load_meta()
 
     judge_results = {}
-    with jsonlines.open(EVAL_FILE) as r:
-        for obj in r:
-            row_idx = obj.get('row_idx')
-            if row_idx is not None:
-                judge_results[row_idx] = (obj.get('type'), obj.get('eval_result', {}))
+    for obj in read_jsonl(EVAL_FILE):
+        row_idx = obj.get('row_idx')
+        if row_idx is not None:
+            judge_results[row_idx] = (obj.get('type'), obj.get('eval_result', {}))
 
     overall = Bucket()
     lang_group: dict[tuple, Bucket] = defaultdict(Bucket)
@@ -299,28 +321,27 @@ def _load_meta():
     """复用 main() 里的 row_meta 和 row_type 构建逻辑"""
     row_meta = {}
     row_type = {}
-    with jsonlines.open(TEST_FILE) as r:
-        for i, obj in enumerate(r):
-            src = obj['source']
-            lr = obj['origin'].get('len_range', '')
-            inp = obj.get('input', '')
-            n_chars = len(inp) if isinstance(inp, str) else 0
-            row_meta[i] = {
-                'lang':            'zh' if '_zh_' in src else 'en',
-                'len_bucket':      LEN_BUCKET.get(lr, 'unknown'),
-                'domain':          get_domain(src),
-                'source':          src,
-                'len_chars':       n_chars,
-                'len_bucket_fine': get_fine_len_bucket(n_chars),
-            }
-            if obj['is_positive']:
-                row_type[i] = 'answerable'
-            elif 'dandian' in src:
-                row_type[i] = 'dandian'
-            elif 'impossible' in src:
-                row_type[i] = 'impossible'
-            elif 'misattr' in src:
-                row_type[i] = 'misattr'
+    for i, obj in enumerate(read_jsonl(TEST_FILE)):
+        src = obj['source']
+        lr = obj['origin'].get('len_range', '')
+        inp = obj.get('input', '')
+        n_chars = len(inp) if isinstance(inp, str) else 0
+        row_meta[i] = {
+            'lang':            'zh' if '_zh_' in src else 'en',
+            'len_bucket':      LEN_BUCKET.get(lr, 'unknown'),
+            'domain':          get_domain(src),
+            'source':          src,
+            'len_chars':       n_chars,
+            'len_bucket_fine': get_fine_len_bucket(n_chars),
+        }
+        if obj['is_positive']:
+            row_type[i] = 'answerable'
+        elif 'dandian' in src:
+            row_type[i] = 'dandian'
+        elif 'impossible' in src:
+            row_type[i] = 'impossible'
+        elif 'misattr' in src:
+            row_type[i] = 'misattr'
     return row_meta, row_type
 
 
@@ -346,9 +367,15 @@ def _classify_unanswerable(type_: str, eval_result: dict) -> str:
     根据样本类型 + judge 结果，给出 wrong / direct_refuse / clarify_refuse 之一。
     """
     if type_ == 'dandian':
-        return 'direct_refuse' if eval_result.get('是否有指出') == '是' else 'wrong'
+        refusal = eval_result.get('refusal_detected')
+        if refusal is None:
+            refusal = eval_result.get('是否有指出') == '是'
+        return 'direct_refuse' if refusal else 'wrong'
     if type_ in ('misattr', 'impossible'):
-        return 'clarify_refuse' if eval_result.get('是否有澄清') == '是' else 'wrong'
+        clarified = eval_result.get('clarified')
+        if clarified is None:
+            clarified = eval_result.get('是否有澄清') == '是'
+        return 'clarify_refuse' if clarified else 'wrong'
     return 'wrong'
 
 
@@ -356,11 +383,10 @@ def main_unanswerable_breakdown():
     _, row_type = _load_meta()
 
     judge_results = {}
-    with jsonlines.open(EVAL_FILE) as r:
-        for obj in r:
-            ri = obj.get('row_idx')
-            if ri is not None:
-                judge_results[ri] = (obj.get('type'), obj.get('eval_result', {}))
+    for obj in read_jsonl(EVAL_FILE):
+        ri = obj.get('row_idx')
+        if ri is not None:
+            judge_results[ri] = (obj.get('type'), obj.get('eval_result', {}))
 
     # group -> {wrong, direct_refuse, clarify_refuse}
     counters = {
@@ -460,6 +486,22 @@ def _largest_remainder_round(raw_pcts: list[float],
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--eval-file",
+        type=Path,
+        required=True,
+        help="JSONL produced by evaluation/evaluate_predictions_api.py",
+    )
+    parser.add_argument(
+        "--test-file",
+        type=Path,
+        default=Path("data/merged_test.jsonl"),
+        help="Legacy FactGuard merged test JSONL",
+    )
+    args = parser.parse_args()
+    EVAL_FILE = args.eval_file
+    TEST_FILE = args.test_file
     main()
     main_grouped()
     main_unanswerable_breakdown()
