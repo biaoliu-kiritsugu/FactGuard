@@ -16,7 +16,8 @@
 - [x] Confirm that no API keys, tokens, internal hostnames, or employee-local
       paths remain in tracked files.
 - [x] Replace Hugging Face namespace placeholders with `kilizi/FactGuard`.
-- [ ] Add the final paper venue, year, DOI/Anthology/OpenReview URL, and BibTeX.
+- [x] Add the paper title, authors, EMNLP 2026 venue, and BibTeX.
+- [ ] Add the final DOI and ACL Anthology URL when available.
 - [x] Run `python scripts/validate_hf_dataset.py --dataset-dir hf_dataset`.
 - [x] Run `python -m compileall` on supported Python modules.
 - [x] Run shell syntax checks with `bash -n`.

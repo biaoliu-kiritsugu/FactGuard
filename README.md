@@ -153,8 +153,14 @@ python compute_metrics.py \
 
 ## Citation
 
-See [`CITATION.cff`](CITATION.cff). A final venue/year/identifier should be added
-after the archival paper metadata is available.
+```bibtex
+@inproceedings{zhang-etal-2026-factguard,
+  title     = {Towards Reliable Long-Context Reasoning: Detecting Unanswerable Questions via FactGuard},
+  author    = {Zhang, Qian-Wen and Liu, Biao and Li, Fang and Wang, Jie and Qiao, Lingfeng and Yu, Yifei and Yin, Di and Sun, Xing},
+  booktitle = {Proceedings of the 2026 Conference on Empirical Methods in Natural Language Processing},
+  year      = {2026}
+}
+```
 
 ## License
 
